@@ -163,7 +163,7 @@ function renderActualList() {
         
         const isPending = p.status === 'pending';
         
-        const actualIconClass = hasVideo ? 'ph-video-camera' : (isPending ? 'ph-hourglass' : 'ph-file-text');
+                const actualIconClass = hasVideo ? 'ph-video-camera' : (isPending ? 'ph-hourglass' : (hasPdf ? 'ph-file-text' : 'ph-warning-circle'));
         
         const div = document.createElement("div");
         div.className = "page-item";
@@ -178,14 +178,14 @@ function renderActualList() {
         if (isPending) {
             statusHtml = `<span class="status-badge" style="background: #e2e8f0; color: #475569;">Waiting</span>`;
         } else if (hasPdf && p.pdf) {
-            statusHtml = `<span class="status-badge">Ready</span>`;
+            statusHtml = `<span class="status-badge">READY</span>`;
         } else {
-            statusHtml = `<span class="status-badge failed">Failed</span>`;
+            statusHtml = `<span class="status-badge failed">FAILED</span>`;
         }
         
         let videoHtml = '';
         if (hasVideo) {
-             videoHtml = `<div style="display:flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:#eab308; margin-top:4px;"><i class="ph ph-film-strip"></i> 🎥 Video detected</div>`;
+             videoHtml = `<div class="video-flag"><i class="ph ph-video"></i><i class="ph ph-film-strip"></i> Video detected</div>`;
         }
         
         div.innerHTML = `

@@ -20,47 +20,72 @@ def process_page_sync(url: str, output_dir: str):
     
     try:
         with sync_playwright() as p:
-            # Add some args to make chromium more stable and accurate
+            print(f"Launching browser to generate PDF for {url}...")
+            # Use a more modern chromium build and some flags
             browser = p.chromium.launch(
                 headless=True,
-                args=['--disable-dev-shm-usage', '--no-sandbox']
+                args=[
+                    '--disable-dev-shm-usage', 
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-blink-features=AutomationControlled'
+                ]
             )
-            context = browser.new_context(viewport={'width': 1280, 'height': 800})
+            
+            # Use a high-quality User-Agent
+            context = browser.new_context(
+                viewport={'width': 1280, 'height': 800},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                ignore_https_errors=True
+            )
+            
             page = context.new_page()
             
-            # IMPORTANT: Emulate screen media to ensure the PDF looks exactly like the website on screen, not a print preview!
+            # Extra evasion: Remove 'webdriver' from navigator
+            page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            
+            # Use screen media for accurate PDF
             page.emulate_media(media="screen")
             
-            # Navigate to the page - use domcontentloaded to avoid hanging on slow external resources
+            # Use networkidle to wait for images and scripts to finish loading
+            print(f"Loading page: {url}")
             try:
-                page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                # Wait a little extra bit for dynamic content and images to load
-                page.wait_for_timeout(3000)
+                # Try to wait for networkidle, but if it's a "chatty" site, it might timeout
+                page.goto(url, wait_until="networkidle", timeout=40000)
             except Exception as nav_e:
-                print(f"Navigation timeout/error (continuing anyway as page might be partially loaded): {nav_e}")
+                print(f"Primary navigation (networkidle) for {url} failed or timed out. Falling back to domcontentloaded. Error: {nav_e}")
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                    page.wait_for_timeout(5000) # Give it 5 extra seconds for fonts/scripts
+                except Exception as fallback_e:
+                    print(f"Fallback navigation also failed for {url}: {fallback_e}")
             
-            # Generate PDF with accurate representation
+            print(f"Capturing PDF for {url}...")
+            # Generate PDF with pixel-to-pixel accuracy
             page.pdf(
                 path=pdf_filepath, 
                 format="A4", 
                 print_background=True,
-                margin={"top": "0px", "right": "0px", "bottom": "0px", "left": "0px"}
+                margin={"top": "0px", "right": "0px", "bottom": "0px", "left": "0px"},
+                prefer_css_page_size=False # We want standard A4 but screen representation
             )
             
             # Generate thumbnail
             page.screenshot(path=thumb_filepath, type="jpeg", quality=40)
             
-            # Get HTML content for video detection
+            # Get HTML content
             html_content = page.content()
             
             browser.close()
+            print(f"PDF generation complete for {url}")
             
         return pdf_filepath, thumb_filepath, html_content
     except Exception as e:
         error_msg = f"Error processing {url}: {str(e)}"
         print(error_msg)
-        # Log error to file for debugging
-        with open("playwright_error.log", "a") as f:
+        # Log error to file
+        log_path = os.path.join(os.getcwd(), "playwright_error.log")
+        with open(log_path, "a") as f:
             f.write(error_msg + "\n")
         return None, None, None
 

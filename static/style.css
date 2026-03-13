@@ -273,6 +273,20 @@ main {
     color: #b91c1c;
 }
 
+.video-flag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ca8a04;
+    margin-top: 8px;
+}
+
+.video-flag i {
+    font-size: 14px;
+}
+
 /* RIGHT PANE */
 .right-pane {
     flex: 1;
@@ -435,8 +449,11 @@ main {
 
 .loading-overlay {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(255,255,255,0.9);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -455,8 +472,13 @@ main {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .empty-state {

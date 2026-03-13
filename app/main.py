@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import asyncio
 from typing import Optional
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, StreamingResponse
@@ -21,56 +22,73 @@ async def read_root():
 @app.get("/api/scan")
 async def scan(url: str = Query(...)):
     async def event_stream():
-        yield f"data: {json.dumps({'status': 'info', 'message': f'Crawling target website...'})}\n\n"
-        
-        links = get_internal_links(url, limit=8)
-        
-        yield f"data: {json.dumps({'status': 'crawled', 'count': len(links), 'links': links})}\n\n"
-        
-        pages_data = []
-        pdf_paths = []
-        
-        output_dir = "output/pdfs"
-        os.makedirs(output_dir, exist_ok=True)
-        
-        for idx, link in enumerate(links):
-            yield f"data: {json.dumps({'status': 'processing_page', 'url': link, 'index': idx, 'total': len(links)})}\n\n"
+        try:
+            yield f"data: {json.dumps({'status': 'info', 'message': f'Scanning website and extracting links...'})}\n\n"
             
-            pdf_path, thumb_path, html_content = await process_page(link, output_dir)
+            # Run crawling in a separate thread because it's synchronous and involves Playwright
+            links = await asyncio.to_thread(get_internal_links, url, 8)
             
-            video_detected = detect_video(html_content) if html_content else False
+            if not links:
+                yield f"data: {json.dumps({'status': 'info', 'message': 'Failed to extract any links. Possible block or invalid URL.'})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'pages': [], 'merged_pdf': None, 'zip_file': None})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'crawled', 'count': len(links), 'links': links})}\n\n"
             
-            pdf_url = "/" + pdf_path.replace("\\", "/") if pdf_path else None
-            thumb_url = "/" + thumb_path.replace("\\", "/") if thumb_path else None
+            pages_data = []
+            pdf_paths = []
             
-            if pdf_path:
-                pdf_paths.append(pdf_path)
+            output_dir = "output/pdfs"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            for idx, link in enumerate(links):
+                yield f"data: {json.dumps({'status': 'processing_page', 'url': link, 'index': idx, 'total': len(links)})}\n\n"
                 
-            page_info = {
-                "url": link,
-                "video": video_detected,
-                "pdf": pdf_url,
-                "thumb": thumb_url
-            }
-            pages_data.append(page_info)
+                pdf_path, thumb_path, html_content = await process_page(link, output_dir)
+                
+                video_detected = detect_video(html_content) if html_content else False
+                
+                pdf_url = "/" + pdf_path.replace("\\", "/") if pdf_path else None
+                thumb_url = "/" + thumb_path.replace("\\", "/") if thumb_path else None
+                
+                if pdf_path:
+                    pdf_paths.append(pdf_path)
+                    
+                page_info = {
+                    "url": link,
+                    "video": video_detected,
+                    "pdf": pdf_url,
+                    "thumb": thumb_url
+                }
+                pages_data.append(page_info)
+                
+                yield f"data: {json.dumps({'status': 'page_done', 'index': idx, 'page': page_info})}\n\n"
+                
+            if not pdf_paths:
+                yield f"data: {json.dumps({'status': 'info', 'message': 'No PDFs were successfully generated.'})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'pages': pages_data, 'merged_pdf': None, 'zip_file': None})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'info', 'message': 'Merging PDFs and creating ZIP archive...'})}\n\n"
             
-            yield f"data: {json.dumps({'status': 'page_done', 'index': idx, 'page': page_info})}\n\n"
+            merge_dir = "output/merged"
+            os.makedirs(merge_dir, exist_ok=True)
+            job_id = str(uuid.uuid4())
             
-        yield f"data: {json.dumps({'status': 'info', 'message': 'Merging PDFs and creating ZIP archive...'})}\n\n"
-        
-        merge_dir = "output/merged"
-        os.makedirs(merge_dir, exist_ok=True)
-        job_id = str(uuid.uuid4())
-        
-        merged_pdf = os.path.join(merge_dir, f"{job_id}_merged.pdf")
-        zip_file = os.path.join(merge_dir, f"{job_id}_all.zip")
-        
-        merge_pdfs(pdf_paths, merged_pdf)
-        create_zip(pdf_paths, zip_file)
-        
-        merged_url = "/" + merged_pdf.replace("\\", "/") if os.path.exists(merged_pdf) else None
-        zip_url = "/" + zip_file.replace("\\", "/") if os.path.exists(zip_file) else None
+            merged_pdf = os.path.join(merge_dir, f"{job_id}_merged.pdf")
+            zip_file = os.path.join(merge_dir, f"{job_id}_all.zip")
             
-        yield f"data: {json.dumps({'status': 'complete', 'pages': pages_data, 'merged_pdf': merged_url, 'zip_file': zip_url})}\n\n"
+            # Using to_thread for these potentially heavy IO operations
+            await asyncio.to_thread(merge_pdfs, pdf_paths, merged_pdf)
+            await asyncio.to_thread(create_zip, pdf_paths, zip_file)
+            
+            merged_url = "/" + merged_pdf.replace("\\", "/") if os.path.exists(merged_pdf) else None
+            zip_url = "/" + zip_file.replace("\\", "/") if os.path.exists(zip_file) else None
+                
+            yield f"data: {json.dumps({'status': 'complete', 'pages': pages_data, 'merged_pdf': merged_url, 'zip_file': zip_url})}\n\n"
+        except Exception as e:
+            print(f"Error in event stream: {e}")
+            yield f"data: {json.dumps({'status': 'info', 'message': f'An error occurred: {str(e)}'})}\n\n"
+            yield f"data: {json.dumps({'status': 'complete', 'pages': [], 'merged_pdf': None, 'zip_file': None})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
