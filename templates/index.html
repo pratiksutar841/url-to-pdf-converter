@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Page Converter</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <div class="logo-icon">
+                <i class="ph ph-stack"></i>
+            </div>
+            <div class="logo-text">
+                <h1>Web Page Converter</h1>
+                <p>PIXEL-PERFECT UTILITY</p>
+            </div>
+        </div>
+
+        <div class="header-center">
+            <div class="url-input-container">
+                <i class="ph ph-globe"></i>
+                <input type="text" id="urlInput" placeholder="Enter website URL" value="https://books.toscrape.com" />
+            </div>
+            <button class="convert-btn" onclick="startConversion()">
+                Convert <i class="ph ph-arrow-right"></i>
+            </button>
+        </div>
+
+        <div class="header-right">
+            <i class="ph ph-faders"></i>
+            <i class="ph ph-question"></i>
+            <div class="avatar">WS</div>
+        </div>
+    </header>
+
+    <main>
+        <div class="left-pane">
+            <div class="pane-header">
+                <i class="ph ph-files"></i>
+                <span>Detected Pages <span id="pagesCount" style="color: #64748b; font-weight: 400; font-size: 14px; margin-left: 4px;">(0)</span></span>
+            </div>
+            <div class="page-list" id="pageList">
+                <div class="empty-state">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <p>Enter a URL and click Convert to detect pages.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-pane" id="rightPane" style="display: none;">
+            <div class="details-card">
+                <div class="details-left">
+                    <div class="details-icon">
+                        <i class="ph ph-browser"></i>
+                    </div>
+                    <div class="details-text">
+                        <h2 id="detailTitle">Page Title</h2>
+                        <p id="detailUrl">https://example.com</p>
+                    </div>
+                </div>
+                <a href="#" id="downloadBtn" class="download-btn" target="_blank" style="display: none;">
+                    <i class="ph ph-download-simple"></i> Download Page PDF
+                </a>
+            </div>
+
+            <div class="preview-area">
+                <div class="preview-frame-container">
+                    <div id="loadingOverlay" class="loading-overlay">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 16px; font-weight: 500; color: #475569;">Generating PDF...</p>
+                    </div>
+                    <iframe id="previewFrame" src=""></iframe>
+                </div>
+                
+                <div class="analysis-card">
+                    <div class="analysis-header">
+                        <i class="ph ph-sparkle"></i>
+                        <span>AI ANALYSIS</span>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h3>CONTENT SUMMARY</h3>
+                        <p id="analysisSummary">Document extracted successfully. Preview is available on the left.</p>
+                    </div>
+                    
+                    <div class="metrics-row">
+                        <div class="metric">
+                            <span class="metric-label">ORIENTATION</span>
+                            <span class="metric-value">Portrait</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">QUALITY</span>
+                            <span class="metric-value">High</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="bottom-actions" id="bottomActions" style="display: none;">
+        <a href="#" id="downloadMergedBtn" class="download-btn primary-btn" download="MergedWebsite.pdf">
+            <i class="ph ph-file-pdf"></i> Download Merged PDF
+        </a>
+        <a href="#" id="downloadZipBtn" class="download-btn secondary-btn" download="WebsitePages.zip">
+            <i class="ph ph-file-zip"></i> Download ZIP
+        </a>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
